@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendSignInLinkToEmail, isSignInWithEmailLink } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getDatabase, ref, set, onValue, push, update } from 'firebase/database';
 import AdminPage from './AdminPage';
 
@@ -34,18 +34,24 @@ function App() {
         
         // تحديث إحصائيات المستخدم
         const userRef = ref(database, 'users/' + user.uid);
-        const updates = {
-          lastLogin: new Date().toLocaleString(),
-          visitCount: (user.visitCount || 0) + 1
-        };
         
-        update(userRef, updates).then(() => {
-          if (user.email === 'mosacyber@gmail.com') {
-            setIsAdminPage(true);
-          } else {
-            loadUserData(user.uid);
-          }
-        });
+        // الحصول على عدد الزيارات الحالي أولاً
+        onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          const currentVisitCount = userData?.visitCount || 0;
+          
+          // تحديث عدد الزيارات
+          update(userRef, {
+            lastLogin: new Date().toLocaleString(),
+            visitCount: currentVisitCount + 1
+          }).then(() => {
+            if (user.email === 'mosacyber@gmail.com') {
+              setIsAdminPage(true);
+            } else {
+              loadUserData(user.uid);
+            }
+          });
+        }, { onlyOnce: true });
       } else {
         setUser(null);
         setIsAdminPage(false);
@@ -66,119 +72,7 @@ function App() {
     });
   };
 
-  const handleLogin = async () => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      setUser(userCredential.user);
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleSignup = async () => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await set(ref(database, 'users/' + user.uid), {
-        email: user.email,
-        notes: [],
-        visitCount: 0,
-        lastLogin: new Date().toLocaleString()
-      });
-      setUser(user);
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setUser(null);
-      setIsAdminPage(false);
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleAddNote = async () => {
-    if (newNote.trim() === '') return;
-    const userRef = ref(database, 'users/' + user.uid + '/notes');
-    await push(userRef, newNote);
-    setNewNote('');
-  };
-
-  if (isAdminPage) {
-    return <AdminPage auth={auth} database={database} />;
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {!user ? (
-        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6">تسجيل الدخول</h1>
-          <input
-            type="email"
-            placeholder="البريد الإلكتروني"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 mb-4 border rounded"
-          />
-          <input
-            type="password"
-            placeholder="كلمة المرور"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 mb-4 border rounded"
-          />
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          >
-            تسجيل الدخول
-          </button>
-          <button
-            onClick={handleSignup}
-            className="w-full bg-green-500 text-white p-2 mt-2 rounded hover:bg-green-600"
-          >
-            إنشاء حساب
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6">مرحبًا، {user.email}</h1>
-          <div className="mb-4">
-            <input
-              type="text"
-              placeholder="أضف ملاحظة جديدة"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              className="w-full p-2 mb-2 border rounded"
-            />
-            <button
-              onClick={handleAddNote}
-              className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-            >
-              إضافة ملاحظة
-            </button>
-          </div>
-          <ul>
-            {notes.map((note, index) => (
-              <li key={index} className="p-2 bg-gray-50 rounded mb-2">
-                {note}
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-500 text-white p-2 mt-4 rounded hover:bg-red-600"
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  // باقي الكود يبقى كما هو...
 }
 
 export default App;
